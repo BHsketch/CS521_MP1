@@ -104,19 +104,22 @@ void gemm_gpu_o0(float* A, float* B, float* C, int M, int N, int K)
 
 // The scafolding for optimized GEMM implementations
 __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, int K) {
-	__shared__ float result; 				// the element of C being computed by this block
-	if (threadIdx.x == 0) result = 0.0f; 	// we'll atomically update partial results to this
+	__shared__ float partialSum[K]; 				// the element of C being computed by this block
+	//if (threadIdx.x == 0) result = 0.0f; 	// we'll atomically update partial results to this
 	__syncthreads();
 
 	float a = A[(blockIdx.y*K) + threadIdx.x];
 	float b = B[(threadIdx.x*M) + blockIdx.x];
 	float c = a*b;
-    atomicAdd(&result, c);		// partial result has been added
+    //atomicAdd(&result, c);		// partial result has been added
+	partialSum[threadIdx.x] = c;
 
 	__syncthreads();							// once all threads have added their partial results
 	if(threadIdx.x == 0)
 	{
-		C[(blockIdx.y*N) + blockIdx.x] = result;	// we can write the result to global memory
+		float sum = 0;
+		for(int i=0; i<K; i++) sum += partialSum[i];
+		C[(blockIdx.y*N) + blockIdx.x] = sum;	// we can write the result to global memory
 	}
 
 }
