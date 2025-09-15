@@ -106,13 +106,18 @@ void gemm_gpu_o0(float* A, float* B, float* C, int M, int N, int K)
 __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, int K) {
 	__shared__ float result; 	// the element of C being computed by this block
 								// we'll atomically update partial results to this
+	if (threadIdx.x == 0) result = 0.0f;
+	__syncthreads();
 	float a = A[(blockIdx.y*K) + threadIdx.x];
 	float b = B[(threadIdx.x*M) + blockIdx.x];
 	float c = a*b;
     atomicAdd(&result, c);		// partial result has been added
 
 	__syncthreads();							// once all threads have added their partial results
-	C[(blockIdx.y*N) + blockIdx.x] = result;	// we can write the result to global memory
+	if(threadIdx.x == 0)
+	{
+		C[(blockIdx.y*N) + blockIdx.x] = result;	// we can write the result to global memory
+	}
 
 }
 void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
