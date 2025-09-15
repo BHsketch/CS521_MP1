@@ -108,8 +108,8 @@ __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, i
 	//if (threadIdx.x == 0) result = 0.0f; 	// we'll atomically update partial results to this
 	__syncthreads();
 
-	float a = A[(blockIdx.y*K) + threadIdx.x];
-	float b = B[(threadIdx.x*M) + blockIdx.x];
+	float a = A[(blockIdx.y)*K + threadIdx.x];
+	float b = B[(threadIdx.x)*M + blockIdx.x];
 	float c = a*b;
     //atomicAdd(&result, c);		// partial result has been added
 	partialSum[threadIdx.x] = c;
@@ -136,10 +136,23 @@ void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
 }
 
 __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, int K) {
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+		for (int i = 0; i < M; i++) {
+			for (int j = 0; j < N; j++) {
+				for (int k = 0; k < K; k++) {
+					C[i * N + j]  += A[i * K + k]  * B[k * N + j];
+				}
+			}
+		}
+    }
+
 }
 void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 {
 	// Init block and grid size
+	dim3 blockSize(1);
+	dim3 gridSize(1);
+	gemm_gpu_o0_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
 __global__ void gemm_gpu_o3_kernel(float* A, float* B, float *C, int M, int N, int K) {
