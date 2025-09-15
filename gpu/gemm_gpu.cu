@@ -109,7 +109,7 @@ __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, i
 	__syncthreads();
 
 	float a = A[(blockIdx.y)*K + threadIdx.x];
-	float b = B[(threadIdx.x)*M + blockIdx.x];
+	float b = B[(threadIdx.x)*N + blockIdx.x];
 	float c = a*b;
     //atomicAdd(&result, c);		// partial result has been added
 	partialSum[threadIdx.x] = c;
