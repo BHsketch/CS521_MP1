@@ -1,5 +1,6 @@
 #include <chrono>
 #include "../include/utils.h"
+#include<algorithm>
 
 #define NUM_RUNS 2
 
@@ -36,7 +37,7 @@ void gemm_cpu_o0(float* A, float* B, float *C, int M, int N, int K) {
   for (int j = 0; j < N; j++) {
     for (int i = 0; i < M; i++) {
       for (int k = 0; k < K; k++) {
-	C[i * N + j]  += A[i * K + k]  * B[k * N + j];
+		  C[i * N + j]  += A[i * K + k]  * B[k * N + j];
       }
     }
   }
@@ -45,14 +46,74 @@ void gemm_cpu_o0(float* A, float* B, float *C, int M, int N, int K) {
 // Your optimized implementations go here
 // note that for o4 you don't have to change the code, but just the compiler flags. So, you can use o3's code for that part
 void gemm_cpu_o1(float* A, float* B, float *C, int M, int N, int K) {
-
+	// ensures that for each matrix, we iterate over the columns first, then the rows.
+	// hence, presumably reducing cache misses
+	for (int i = 0; i < M; i++) {
+		for (int k = 0; k < K; k++) {
+			for (int j = 0; j < N; j++) {
+				C[i * N + j]  += A[i * K + k]  * B[k * N + j];
+			}
+		}
+	}
 }
 
 void gemm_cpu_o2(float* A, float* B, float *C, int M, int N, int K) {
 
+	int CACHE_LINE_SIZE = 16; // from command `getconf LEVEL1_DCACHE_LINESIZE`
+
+	for (int kk = 0; kk < K; kk+=CACHE_LINE_SIZE) {
+		for (int jj = 0; jj < N; jj+=CACHE_LINE_SIZE) {
+
+			// kk and jj fix a block of B such that all computations that
+			// block participates in are completed before moving to the 
+			// next block of B
+			
+			int limitK = std::min((kk + CACHE_LINE_SIZE), K);
+			int limitJ = std::min((jj + CACHE_LINE_SIZE), N);
+			//int limitI = std::min((ii + CACHE_LINE_SIZE),M);
+			for (int i = 0; i < M; i++) {
+				for (int k = kk; k < limitK; k++) {
+					for (int j = jj; j < limitJ; j++) {
+						C[i * N + j]  += A[i * K + k]  * B[k * N + j];
+					}
+				}
+			}
+		}
+
+	}
+
+
 }
 
 void gemm_cpu_o3(float* A, float* B, float *C, int M, int N, int K) {
+	int CACHE_LINE_SIZE = 8; // from command `getconf LEVEL1_DCACHE_LINESIZE`
+
+// each kk-jj block can be worked upon independently, hence parallelizing
+#pragma omp parallel for
+	for (int kk = 0; kk < K; kk+=CACHE_LINE_SIZE) {
+#pragma omp parallel for
+		for (int jj = 0; jj < N; jj+=CACHE_LINE_SIZE) {
+
+			// kk and jj fix a block of B such that all computations that
+			// block participates in are completed before moving to the 
+			// next block of B
+
+			// calculating block limits beforehand for readability
+			int limitK = std::min((kk + CACHE_LINE_SIZE), K);
+			int limitJ = std::min((jj + CACHE_LINE_SIZE), N);
+
+#pragma omp parallel for
+			for (int i = 0; i < M; i++) {
+#pragma omp parallel for
+				for (int k = kk; k < limitK; k++) {
+					for (int j = jj; j < limitJ; j++) {
+						C[i * N + j]  += A[i * K + k]  * B[k * N + j];
+					}
+				}
+			}
+		}
+
+	}
 
 }
 
