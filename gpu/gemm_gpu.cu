@@ -104,10 +104,10 @@ void gemm_gpu_o0(float* A, float* B, float* C, int M, int N, int K)
 
 // The scafolding for optimized GEMM implementations
 __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, int K) {
-	__shared__ float result; 	// the element of C being computed by this block
-								// we'll atomically update partial results to this
-	if (threadIdx.x == 0) result = 0.0f;
+	__shared__ float result; 				// the element of C being computed by this block
+	if (threadIdx.x == 0) result = 0.0f; 	// we'll atomically update partial results to this
 	__syncthreads();
+
 	float a = A[(blockIdx.y*K) + threadIdx.x];
 	float b = B[(threadIdx.x*M) + blockIdx.x];
 	float c = a*b;
@@ -129,6 +129,7 @@ void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
 	dim3 gridSize(N, M);
 	dim3 blockSize(K);
 	gemm_gpu_o1_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
+	cudaDeviceSynchronize(); // ensure kernel is done
 }
 
 __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, int K) {
