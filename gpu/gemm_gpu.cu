@@ -146,12 +146,14 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 	float c = 0.0;
 
 	// iterate over all (pairs of) A and B tiles that we must multiply  
+	int i = (blockIdx.y * TILE_SIZE) + threadIdx.y;
+	int j = (blockIdx.x * TILE_SIZE) + threadIdx.x;
 	for(int kk = 0; kk < K; kk += TILE_SIZE) {
+
+		__syncthreads();
 		// finding the output element this thread will focus on. 
 		// these values might actually be out-of-bounds if the input
 		// matrix is not a multiple of TILE_SIZE.
-		int i = (blockIdx.y * TILE_SIZE) + threadIdx.y;
-		int j = (blockIdx.x * TILE_SIZE) + threadIdx.x;
 		int k = kk + threadIdx.x;
 
 		// We the "working set" tiles of A and B into shared memory
@@ -184,8 +186,6 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 		
 	}	
 	
-	int i = (blockIdx.y * TILE_SIZE) + threadIdx.y;
-	int j = (blockIdx.x * TILE_SIZE) + threadIdx.x;
 	if((i<M) && (j<N)) {
 		C[i*N + j] = c;
 	}
