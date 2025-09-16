@@ -150,7 +150,6 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 	int j = (blockIdx.x * TILE_SIZE) + threadIdx.x;
 	for(int kk = 0; kk < K; kk += TILE_SIZE) {
 
-		__syncthreads();
 		// finding the output element this thread will focus on. 
 		// these values might actually be out-of-bounds if the input
 		// matrix is not a multiple of TILE_SIZE.
@@ -183,6 +182,8 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 		for(int ele = 0; ele < TILE_SIZE; ele++) {
 			c += ATile[threadIdx.y][ele] * BTile[ele][threadIdx.x];
 		}
+
+		__syncthreads();
 		
 	}	
 	
@@ -208,7 +209,7 @@ void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 	// each block will calculate one block of the result's output.
 	// K will also be tiled with tiles of length 16
 	dim3 blockSize(TILE_SIZE, TILE_SIZE);
-	gemm_gpu_o0_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
+	gemm_gpu_o2_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
 __global__ void gemm_gpu_o3_kernel(float* A, float* B, float *C, int M, int N, int K) {
@@ -249,9 +250,9 @@ int main(int argc, char* argv[]) {
 
 	// Actual run
  	TIME(gemm_gpu_o0)
-	TIME(gemm_gpu_o1)
+	//TIME(gemm_gpu_o1)
 	TIME(gemm_gpu_o2)
-	TIME(gemm_gpu_o3)
+	//TIME(gemm_gpu_o3)
 
 	cudaFreeHost(A);
 	cudaFreeHost(B);
