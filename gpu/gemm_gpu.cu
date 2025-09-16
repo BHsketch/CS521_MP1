@@ -121,7 +121,6 @@ __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, i
 		for(int i=0; i<K; i++) sum += partialSum[i];
 
 
-When one warp stalls (e.g. waiting for memory), another warp is immediately swapped in → no real overhead.
 		C[(blockIdx.y*N) + blockIdx.x] = sum;	// we can write the result to global memory
 	}
 
