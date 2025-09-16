@@ -119,6 +119,9 @@ __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, i
 	{
 		float sum = 0;
 		for(int i=0; i<K; i++) sum += partialSum[i];
+
+
+When one warp stalls (e.g. waiting for memory), another warp is immediately swapped in → no real overhead.
 		C[(blockIdx.y*N) + blockIdx.x] = sum;	// we can write the result to global memory
 	}
 
@@ -136,22 +139,76 @@ void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
 }
 
 __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, int K) {
-	if (threadIdx.x == 0 && blockIdx.x == 0) {
-		for (int i = 0; i < M; i++) {
-			for (int j = 0; j < N; j++) {
-				for (int k = 0; k < K; k++) {
-					C[i * N + j]  += A[i * K + k]  * B[k * N + j];
-				}
-			}
-		}
-    }
+	// each thread in a block will calculate one output element C[i, j]
+	int TILE_SIZE = 16;
 
+	__shared__ float ATile[TILE_SIZE][TILE_SIZE];
+	__shared__ float BTile[TILE_SIZE][TILE_SIZE];
+	__shared__ float c = 0.0;
+
+	// iterate over all (pairs of) A and B tiles that we must multiply  
+	for(int kk = 0; kk < K; kk += TILE_SIZE) {
+		// finding the output element this thread will focus on. 
+		// these values might actually be out-of-bounds if the input
+		// matrix is not a multiple of TILE_SIZE.
+		int i = (blockIdx.y * TILE_SIZE) + threadIdx.y;
+		int j = (blockIdx.x * TILE_SIZE) + threadIdx.x;
+		int k = kk + threadIdx.x;
+
+		// We the "working set" tiles of A and B into shared memory
+		// each thread brings one element in --- for each K, this is
+		// the element corresponding to their assigned compute in the output matrix
+		// threads accesses consecutive locations in matrices A and B --- coalescing
+
+		// bringing a tile of A into shared memory
+		if((k < K) && (i<M))
+		{
+			ATile[threadIdx.y][threadIdx.x] = A[i*K + k];
+		}else{
+			ATile[threadIdx.y][threadIdx.x] = 0.0;
+		}
+			
+		// bringing a tile of B into shared memory
+		if((j < N) && (k < K))
+		{
+			BTile[threadIdx.y][threadIdx.x] = B[k*N + j];
+		}else{
+			BTile[threadIdx.y][threadIdx.x] = 0.0;
+		}
+		
+		// can continue only after all elements have been brought into shared memory
+		__syncthreads();		
+
+		for(int ele = 0; ele < TILE_SIZE; ele++) {
+			c += ATile[threadIdx.y][ele] * BTile[ele][threadIdx.x];
+		}
+		
+		__syncthreads();
+
+	}	
+	
+	if((i<M) && (j<N)) {
+		C[i*N + j] = c;
+	}
+
+	
+		
 }
+
+
 void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 {
+	int TILE_SIZE = 16
 	// Init block and grid size
-	dim3 blockSize(1);
-	dim3 gridSize(1);
+	// each block in the grid will fully compute one output tile.
+	// finding number of output tiles: (dimx x dimy)
+	int dimx = (N+TILE_SIZE-1)/TILE_SIZE;
+	int dimy = (M+TILE_SIZE-1)/TILE_SIZE;
+
+	dim3 gridSize(dimx, dimy);
+	// each block will calculate one block of the result's output.
+	// K will also be tiled with tiles of length 16
+	dim3 blockSize(TILE_SIZE, TILE_SIZE);
 	gemm_gpu_o0_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
