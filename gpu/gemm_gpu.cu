@@ -139,10 +139,10 @@ void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
 
 __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, int K) {
 	// each thread in a block will calculate one output element C[i, j]
-	int TILE_SIZE = 16;
+	int TILE_SIZE = 32;
 
-	__shared__ float ATile[16][16];
-	__shared__ float BTile[16][16];
+	__shared__ float ATile[32][32];
+	__shared__ float BTile[32][32];
 	float c = 0.0;
 
 	// iterate over all (pairs of) A and B tiles that we must multiply  
@@ -197,7 +197,7 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 
 void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 {
-	int TILE_SIZE = 16;
+	int TILE_SIZE = 32;
 	// Init block and grid size
 	// each block in the grid will fully compute one output tile.
 	// finding number of output tiles: (dimx x dimy)
