@@ -199,7 +199,7 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 
 void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 {
-	int TILE_SIZE = 16
+	int TILE_SIZE = 16;
 	// Init block and grid size
 	// each block in the grid will fully compute one output tile.
 	// finding number of output tiles: (dimx x dimy)
