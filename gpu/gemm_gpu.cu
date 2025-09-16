@@ -182,8 +182,6 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 			c += ATile[threadIdx.y][ele] * BTile[ele][threadIdx.x];
 		}
 		
-		__syncthreads();
-
 	}	
 	
 	int i = (blockIdx.y * TILE_SIZE) + threadIdx.y;
