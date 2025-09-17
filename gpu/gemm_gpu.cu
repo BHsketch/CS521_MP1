@@ -153,7 +153,7 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 		// finding the output element this thread will focus on. 
 		// these values might actually be out-of-bounds if the input
 		// matrix is not a multiple of TILE_SIZE.
-		int k = kk + threadIdx.x;
+		int kx = kk + threadIdx.x;
 
 		// We the "working set" tiles of A and B into shared memory
 		// each thread brings one element in --- for each K, this is
@@ -161,17 +161,19 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 		// threads accesses consecutive locations in matrices A and B --- coalescing
 
 		// bringing a tile of A into shared memory
-		if((k < K) && (i<M))
+		if((kx < K) && (i<M))
 		{
-			ATile[threadIdx.y][threadIdx.x] = A[i*K + k];
+			ATile[threadIdx.y][threadIdx.x] = A[i*K + kx];
 		}else{
 			ATile[threadIdx.y][threadIdx.x] = 0.0;
 		}
 			
+
+		int ky = kk + threadIdx.y;
 		// bringing a tile of B into shared memory
-		if((j < N) && (k < K))
+		if((j < N) && (ky < K))
 		{
-			BTile[threadIdx.y][threadIdx.x] = B[k*N + j];
+			BTile[threadIdx.y][threadIdx.x] = B[ky*N + j];
 		}else{
 			BTile[threadIdx.y][threadIdx.x] = 0.0;
 		}
@@ -188,7 +190,7 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 	}	
 	
 	if((i<M) && (j<N)) {
-		C[i*N + j] += c;
+		C[i*N + j] = c;
 	}
 
 	
