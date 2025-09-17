@@ -188,7 +188,7 @@ __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, i
 	}	
 	
 	if((i<M) && (j<N)) {
-		C[i*N + j] = c;
+		C[i*N + j] += c;
 	}
 
 	
@@ -249,8 +249,8 @@ int main(int argc, char* argv[]) {
 	CHECK(gemm_gpu_o3)
 
 	// Actual run
- 	TIME(gemm_gpu_o0)
-	//TIME(gemm_gpu_o1)
+	TIME(gemm_gpu_o0)
+	TIME(gemm_gpu_o1)
 	TIME(gemm_gpu_o2)
 	//TIME(gemm_gpu_o3)
 
